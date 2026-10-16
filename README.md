@@ -2,7 +2,7 @@
 
 Sega's C from two PlayStation 2 releases: **Sega Ages 2500 Vol. 16: Virtua Fighter 2** (SLPM-62547) and **Vol. 19: Fighting Vipers** (SLPM-62606). The plan is to clean it up so it builds inside [m2-hle2](https://github.com/biggestsonicfan/m2-hle2), as [gems-c](https://github.com/biggestsonicfan/gems-c) did for Sonic Gems Collection.
 
-The aim is C hooks for the emulator that are as close to the board as we can make them, not a copy of the PS2 games. Where the board does something else, follow the board. The faithful record of the PS2 C is [ages-decomp](https://github.com/biggestsonicfan/ages-decomp) (`decomp/`, once it's a submodule).
+The aim is C hooks for the emulator that are as close to the board as we can make them, not a copy of the PS2 games. Where the board does something else, follow the board. The faithful record of the PS2 C is [ages-decomp](https://github.com/biggestsonicfan/ages-decomp) (the submodule `decomp/`).
 
 **State:** the source material is extracted (ages-decomp) and the tools that made it are here. No function is converted yet.
 
@@ -17,7 +17,7 @@ Fighting Vipers shares the engine with Sonic the Fighters, so much of its `FN` l
 
 ## Plan
 
-1. **ages-decomp and ages-c on GitHub.** The owner creates `biggestsonicfan/ages-decomp` and `biggestsonicfan/ages-c`. Then ages-decomp is pushed and added here as the submodule `decomp/`.
+1. **ages-decomp and ages-c on GitHub.** Done: ages-decomp is the submodule `decomp/` (`git clone --recursive`, or `git submodule update --init`).
 2. **Fighting Vipers first.** m2-hle2 already runs `fvipers` (`src/profiles/fvipers.h`). Convert the 46 `FN` roots to `fn/<arcade name>.h` in gems-c's form (`static uint32_t afn_<name>(int entry)`), with a hook at each patch site, behind an `--ages-i960` flag. Name the remaining FV helpers first: 94 of the 112 are still `FUN_` (see "Naming" below).
 3. **The FV COP**, `cop/NN_<name>.h`, behind `--ages-cop`. That includes the Model 2B commands Gems never had (`Fn_area_coli`, `Fn_kage_poly`...). gems-c's `sharc/` covers most of the rest, so compare the two before converting.
 4. **A verify mode** like `--gems-verify`: run each hooked function both ways and log what differs from the i960.
@@ -30,7 +30,7 @@ What m2-hle2 gets will follow `src/core/gems.h`: an `ages.h` with the runtime AP
 | path | what |
 |---|---|
 | `tools/` | everything used to extract and name the source material (below) |
-| `decomp/` | (to come) the submodule ages-decomp |
+| `decomp/` | the submodule ages-decomp |
 | `fn/`, `cop/`, `gen_all.py`, `ages_impl.h`, `check.sh` | (to come) the conversion, in gems-c's layout |
 
 No game data is in either repository. The tools need your own copies of the discs.
