@@ -1,0 +1,23 @@
+/* rob0_coli_ball_table_all_init: i960 0x1950, PS2 0x1EC880. Fighter 0's collision
+ * tables from ROM: the ball quads, the unit address and unit tables, the
+ * radii, the colours and the unit counts, each to its fixed RAM block
+ * through g0 (and g1). g0 and g1 are left as the last helper leaves them. */
+#pragma once
+
+static uint32_t afn_rob0_coli_ball_table_all_init(int entry) {
+    AGES_G(0) = 0x506000u;
+    afn_cb_data_init(0);
+    AGES_G(0) = 0x506400u;
+    AGES_G(1) = 0x506480u;
+    afn_ucb_adr_init(0);
+    AGES_G(0) = 0x506480u;
+    afn_ucb_unit_init(0);
+    AGES_G(0) = 0x506580u;
+    afn_coli_bu_rd_init(0);
+    AGES_G(0) = 0x506680u;
+    afn_coli_bu_co_init(0);
+    AGES_G(0) = 0x5066C0u;
+    afn_coli_ucb_num_init(0);
+    if (entry) ages_i960_ret();
+    return 0;
+}
