@@ -23,7 +23,7 @@ Fighting Vipers shares the engine with Sonic the Fighters, so much of its `FN` l
 4. **A verify mode** like `--gems-verify`: run each hooked function both ways and log what differs from the i960. Done for the i960 roots: `--ages-verify` is `--gems-verify`'s verifier.
 5. **Virtua Fighter 2.** m2-hle2 has no VF2 profile yet; it needs one for the Model 2A board (`BOARD_MODEL2A_CRX`), and the arcade program needs labels to pair VF2's patch sites with function names.
 
-m2-hle2's side follows `src/core/gems.h`: `src/core/ages.h` has the flags and the runtime API, and the CMake option `M2HLE_AGES_DIR` points at this repository's `ages_impl.h`. A build without it accepts the flags, which then log that they do nothing. As with Gems, neither flag is the board: a hooked function is charged as one i960 instruction, and the PS2's COP is single-precision VU0/FPU arithmetic, not the TGP or SHARC. A netplay session turns both off.
+m2-hle2's side follows `src/core/gems.h`: `src/core/ages.h` ([m2-hle2 #394](https://github.com/biggestsonicfan/m2-hle2/pull/394)) has the flags and the runtime API, and the CMake option `M2HLE_AGES_DIR` points at this repository's `ages_impl.h`. A build without it accepts the flags, which then log that they do nothing. As with Gems, neither flag is the board: a hooked function is charged as one i960 instruction, and the PS2's COP is single-precision VU0/FPU arithmetic, not the TGP or SHARC. A netplay session turns both off.
 
 ## Layout
 
@@ -63,7 +63,7 @@ grep ages-verify /dev/shm/ages-run/m2hle.log
 
 `check.sh` compiles `ages.h` with everything here (gcc `-fsyntax-only -Wall`). `--ages-verify` runs each hooked function both ways, as gems-c's `--gems-verify`: the C on a snapshot of the board, then the i960 from the same state to where the C resumed, and logs what differs; the board carries on from the i960's run. At exit it logs one row per function: calls / exact / float-close / regs-only / differ / lost.
 
-Last run (300 s of fvipers attract): `efc_face_change_cont` 264 calls, 264 exact. The same run with the store put one slot off on purpose logs every call as `differ` (two RAM words). Before m2-hle2 #996, that wrong slot passed as float-close: small integers read as denormal floats, and the old tolerance took any two of them as close.
+Last run (300 s of fvipers attract): `efc_face_change_cont` 264 calls, 264 exact. The same run with the store put one slot off on purpose logs every call as `differ` (two RAM words). Before [m2-hle2 #394](https://github.com/biggestsonicfan/m2-hle2/pull/394), that wrong slot passed as float-close: small integers read as denormal floats, and the old tolerance took any two of them as close.
 
 Run lizard (`/opt/fly/bin/lizard -w -C 15 -L 80 fn`) after changing any C here.
 
