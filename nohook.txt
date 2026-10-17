@@ -1,0 +1,4 @@
+# Roots that are defined here (other C calls them) but left to the i960 at
+# their own patch site: fvipers' attract never calls them there, so
+# --ages-verify has nothing to check them against. One per line: name, why.
+set_obj_tpd     tex_move_poly calls it; attract never reaches its own site
