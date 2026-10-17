@@ -4,7 +4,7 @@ Sega's C from two PlayStation 2 releases: **Sega Ages 2500 Vol. 16: Virtua Fight
 
 The aim is C hooks for the emulator that are as close to the board as we can make them, not a copy of the PS2 games. Where the board does something else, follow the board. The faithful record of the PS2 C is [ages-decomp](https://github.com/biggestsonicfan/ages-decomp) (the submodule `decomp/`).
 
-**State:** the source material is extracted (ages-decomp) and the tools that made it are here. 37 of Fighting Vipers' 46 roots are converted and hooked behind m2-hle2's `--ages-i960`, every one exact against the i960 under `--ages-verify` (see "Checking"). Of the other 9, 2 use another convention and 7 never run in attract, so the verifier cannot check them (see "Roots not hooked").
+**State:** the source material is extracted (ages-decomp) and the tools that made it are here. 38 of Fighting Vipers' 46 roots are converted and hooked behind m2-hle2's `--ages-i960`, every one exact against the i960 under `--ages-verify` (see "Checking"). Of the other 8, 1 uses another convention and 7 never run in attract, so the verifier cannot check them (see "Roots not hooked").
 
 ## What the PS2 games do
 
@@ -18,7 +18,7 @@ Fighting Vipers shares the engine with Sonic the Fighters, so much of its `FN` l
 ## Plan
 
 1. **ages-decomp and ages-c on GitHub.** Done: ages-decomp is the submodule `decomp/` (`git clone --recursive`, or `git submodule update --init`).
-2. **Fighting Vipers first.** m2-hle2 already runs `fvipers` (`src/profiles/fvipers.h`). Convert the 46 `FN` roots to `fn/<arcade name>.h` in gems-c's form (`static uint32_t afn_<name>(int entry)`), with a hook at each patch site, behind an `--ages-i960` flag. Done for every root attract reaches: 37 hooked, plus the helpers they call (110 files). 36 of FV's 112 helpers are still `FUN_` (see "Naming" below); 33 of them are outside the game code (runtime code VF2 didn't match), and the other 3 have no arcade name.
+2. **Fighting Vipers first.** m2-hle2 already runs `fvipers` (`src/profiles/fvipers.h`). Convert the 46 `FN` roots to `fn/<arcade name>.h` in gems-c's form (`static uint32_t afn_<name>(int entry)`), with a hook at each patch site, behind an `--ages-i960` flag. Done for every root attract reaches: 38 hooked, plus the helpers they call (111 files). 36 of FV's 112 helpers are still `FUN_` (see "Naming" below); 33 of them are outside the game code (runtime code VF2 didn't match), and the other 3 have no arcade name.
 3. **The FV COP**, `cop/NN_<name>.h`, behind `--ages-cop`. That includes the Model 2B commands Gems never had (`Fn_area_coli`, `Fn_kage_poly`...). gems-c's `sharc/` covers most of the rest, so compare the two before converting.
 4. **A verify mode** like `--gems-verify`: run each hooked function both ways and log what differs from the i960. Done for the i960 roots: `--ages-verify` is `--gems-verify`'s verifier.
 5. **Virtua Fighter 2.** m2-hle2 has no VF2 profile yet; it needs one for the Model 2A board (`BOARD_MODEL2A_CRX`), and the arcade program needs labels to pair VF2's patch sites with function names.
@@ -31,7 +31,7 @@ m2-hle2's side follows `src/core/gems.h`: `src/core/ages.h` ([m2-hle2 #394](http
 |---|---|
 | `tools/` | everything used to extract and name the source material (below) |
 | `decomp/` | the submodule ages-decomp |
-| `fn/<name>.h` | one patched i960 function: `static uint32_t afn_<name>(int entry)`. `entry` 1 = called from the patch site (pops the i960 frame itself, as the PS2's `i960ReturnProc`), 0 = called from other C. Returns 0 |
+| `fn/<name>.h` | one patched i960 function: `static uint32_t afn_<name>(int entry)`. `entry` 1 = called from the patch site (pops the i960 frame itself, as the PS2's `i960ReturnProc`), 0 = called from other C. Returns 0, except a root patched mid-function (`rob_grass_disp_p768`): it pops nothing and returns how far the PS2's interpreter moves on in its decoded program (8 bytes per i960 word), so the i960 resumes at site + R/2, as gems.h does for Gems' traps |
 | `gen_all.py` | writes `ages_all.h`: prototypes, includes and `ages_patches[]`. Only functions that are defined go in the table; the patch sites come from `decomp/FV/FN/INDEX.md` |
 | `ages_all.h` | written by `gen_all.py`; not tracked (`.gitignore`) |
 | `nohook.txt` | roots that are defined (other C calls them) but left to the i960 at their own site |
@@ -64,13 +64,13 @@ grep ages-verify /dev/shm/ages-run/m2hle.log
 
 `check.sh` compiles `ages.h` with everything here (gcc `-fsyntax-only -Wall`). `--ages-verify` runs each hooked function both ways, as gems-c's `--gems-verify`: the C on a snapshot of the board, then the i960 from the same state to where the C resumed, and logs what differs; the board carries on from the i960's run. At exit it logs one row per function: calls / exact / float-close / regs-only / differ / lost.
 
-Last run (300 s of fvipers attract, every `fn/` file): all 37 hooked roots exact on every checked call, from `send_coli_ball_R` (1 call) to `set_obj` (36829); `play_motion`, `calc_unit_mat` and `osage_dsp` 1280 each, `rob_disp` 1771. The verifier checks a root's first 256 calls, then one in 32, so rare paths can go unchecked. `efc_face_change_cont` was the first; a run with its store put one slot off on purpose logs every call as `differ` (two RAM words). Before [m2-hle2 #394](https://github.com/biggestsonicfan/m2-hle2/pull/394), that wrong slot passed as float-close: small integers read as denormal floats, and the old tolerance took any two of them as close.
+Last run (300 s of fvipers attract, every `fn/` file): all 38 hooked roots exact on every checked call, from `send_coli_ball_R` (1 call) to `set_obj` (35729); `play_motion`, `calc_unit_mat` and `osage_dsp` 1257 each, `rob_disp` 1726, `rob_grass_disp_p768` 304. The verifier checks a root's first 256 calls, then one in 32, so rare paths can go unchecked. `efc_face_change_cont` was the first; a run with its store put one slot off on purpose logs every call as `differ` (two RAM words). Before [m2-hle2 #394](https://github.com/biggestsonicfan/m2-hle2/pull/394), that wrong slot passed as float-close: small integers read as denormal floats, and the old tolerance took any two of them as close.
 
 Run lizard (`/opt/fly/bin/lizard -w -C 15 -L 80 fn`) after changing any C here.
 
 ## Roots not hooked
 
-- **Another convention:** `rob_grass_disp_p768` (EXT 12, patched in the middle of `rob_grass_disp`; returns 0x120 and does not pop the frame) and `cage_break_st04` (EXT 79, returns 1000 and does not pop the frame). Neither is converted.
+- **Another convention:** `cage_break_st04` (EXT 79, returns 1000 and does not pop the frame). Not converted. (`rob_grass_disp_p768`, EXT 12, is the other mid-function patch: it replaces 0x7789C-0x77928 of `rob_grass_disp` and returns 0x120, i.e. resume at 0x7792C. That fits the trap ABI's R != 0 case, so it is hooked; its C follows the i960, since the PS2's puts EE pointers in the registers.)
 - **Never run in attract**, so not checked: `set_obj_tpd` (converted, because `tex_move_poly` calls it; in `nohook.txt`), `clip_point_check`, `cage_break_st01`, `cage_break_calc`, `line_disp`, `ScrollCG_Initialize`, `tou_disp` (not converted).
 - **Helpers attract never reaches:** `pky_kami_disp`, `set_ashi_ptn`, `set_te_ptn` (under `rob_disp`) are converted but never ran under the verifier.
 
