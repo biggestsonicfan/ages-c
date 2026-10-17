@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Name FV's native helpers after the arcade i960 functions they translate.
 
-arcade_align.py <fv elf> <functions.tsv> <names.tsv> <roots.tsv> <ida_calls.tsv> [LO HI] > arcade.tsv
+arcade_align.py <fv elf> <functions.tsv> <names.tsv> <roots.tsv> <ida_calls.tsv> [LO HI [by_hand.tsv]] > arcade.tsv
 Starts from the FN roots (named by i960names.py). For each native function with an
 arcade name, its calls in code order (runtime calls dropped) are lined up against
 the arcade function's calls (ida_calls.tsv: addr, name, end, callees in order).
@@ -10,7 +10,8 @@ the VU0 matrix code that stands in for COP commands. Calls both sides already ag
 on are anchors; between two anchors, a gap of the same length on both sides pairs
 up in order. A native callee that every caller pairs with the same arcade name gets it; repeat until
 nothing new. Output: native addr, arcade name, how (equal = the two call lists
-had the same length, aligned = only the gap did)."""
+had the same length, aligned = only the gap did, by hand = from by_hand.tsv, named
+after reading the code where the alignment cannot pair them)."""
 import re
 import struct
 import sys
@@ -61,9 +62,18 @@ def align(n, a, known):
         gap = [x for x in n[i0 + 1:i1] if x not in known]
         if len(gap) != j1 - j0 - 1:
             continue
-        for x, y in zip(gap, a[j0 + 1:j1]):
-            if y != '?' and not y.startswith('debug_'):
-                yield x, y
+        pairs = [(x, y) for x, y in zip(gap, a[j0 + 1:j1]) if y != '?' and not y.startswith('debug_')]
+        yield from consistent(pairs)
+
+
+def consistent(pairs):
+    """Drop the pairs of a native callee that pairs with two arcade names in one gap, or of
+    an arcade name paired with two native callees: the PS2 compiler moved a branch there."""
+    xs, ys = {}, {}
+    for x, y in pairs:
+        xs.setdefault(x, set()).add(y)
+        ys.setdefault(y, set()).add(x)
+    return [(x, y) for x, y in pairs if len(xs[x]) == 1 and len(ys[y]) == 1]
 
 
 def load_arcade(ida_tsv):
@@ -103,6 +113,11 @@ def one_round(known, calls, arcade):
     return {x: v for x, v in new.items() if len(taken[v[0]]) == 1 and v[0] not in known.values()}
 
 
+def load_by_hand(tsv):
+    rows = [l.rstrip('\n').split('\t') for l in open(tsv) if l.strip() and not l.startswith('#')]
+    return {int(p[0], 16): p[1] for p in rows}
+
+
 def main():
     elf, tsv, names_tsv, roots_tsv, ida_tsv = sys.argv[1:6]
     lo, hi = (int(x, 16) for x in sys.argv[6:8]) if len(sys.argv) > 7 else (0, 1 << 32)
@@ -111,6 +126,10 @@ def main():
     calls = {f: [t for t in c if lo <= t < hi] for f, c in native_calls(elf, tsv, names).items()}
     known = load_roots(roots_tsv)
     how = dict.fromkeys(known, 'root')
+    if len(sys.argv) > 8:
+        hand = load_by_hand(sys.argv[8])
+        known.update(hand)
+        how.update(dict.fromkeys(hand, 'by hand'))
     new = one_round(known, calls, arcade)
     while new:
         for x, (y, k) in new.items():

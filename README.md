@@ -18,7 +18,7 @@ Fighting Vipers shares the engine with Sonic the Fighters, so much of its `FN` l
 ## Plan
 
 1. **ages-decomp and ages-c on GitHub.** Done: ages-decomp is the submodule `decomp/` (`git clone --recursive`, or `git submodule update --init`).
-2. **Fighting Vipers first.** m2-hle2 already runs `fvipers` (`src/profiles/fvipers.h`). Convert the 46 `FN` roots to `fn/<arcade name>.h` in gems-c's form (`static uint32_t afn_<name>(int entry)`), with a hook at each patch site, behind an `--ages-i960` flag. Name the remaining FV helpers first: 94 of the 112 are still `FUN_` (see "Naming" below).
+2. **Fighting Vipers first.** m2-hle2 already runs `fvipers` (`src/profiles/fvipers.h`). Convert the 46 `FN` roots to `fn/<arcade name>.h` in gems-c's form (`static uint32_t afn_<name>(int entry)`), with a hook at each patch site, behind an `--ages-i960` flag. 36 of FV's 112 helpers are still `FUN_` (see "Naming" below); 33 of them are outside the game code (runtime code VF2 didn't match), and the other 3 have no arcade name.
 3. **The FV COP**, `cop/NN_<name>.h`, behind `--ages-cop`. That includes the Model 2B commands Gems never had (`Fn_area_coli`, `Fn_kage_poly`...). gems-c's `sharc/` covers most of the rest, so compare the two before converting.
 4. **A verify mode** like `--gems-verify`: run each hooked function both ways and log what differs from the i960.
 5. **Virtua Fighter 2.** m2-hle2 has no VF2 profile yet; it needs one for the Model 2A board (`BOARD_MODEL2A_CRX`), and the arcade program needs labels to pair VF2's patch sites with function names.
@@ -73,9 +73,18 @@ VF2's names are Sega's own, from the symbol table. FV is stripped, and its names
 
 1. **VF2:** 2,112 of 3,163 functions match (`decomp/FV/names_from_vf2.tsv`): the shared runtime, the interpreter, the COP and the libraries. None of the 141 functions in FV's game code (`0x1c8000`-`0x200000`) match; it differs too much from VF2's.
 2. **The arcade patch sites:** all 46 roots, from a labelled IDA database of `fvipers`.
-3. **Call alignment against the arcade:** 14 helpers so far (`decomp/FV/names_from_arcade.tsv`). Only calls into the game code count. A gap between two calls both sides agree on pairs up only if it's the same length on both sides. A looser pairing was tried and gave wrong names (a PS2 LOD check came out as `set_ashi_ptn`).
+3. **Call alignment against the arcade:** 35 helpers (`decomp/FV/names_from_arcade.tsv`, `how` = `equal` or `aligned`). Only calls into the game code count. A gap between two calls both sides agree on pairs up only if it's the same length on both sides, and a pair is dropped if either side would get two names. A looser pairing was tried and gave wrong names (a PS2 LOD check came out as `set_ashi_ptn`).
+4. **By hand:** 37 helpers (`tools/fv_by_hand.tsv`, `how` = `by hand`), each named from reading both sides, with the evidence in the file's third column. They go in before the alignment, so it can carry on from them.
 
-The IDA database's function ends are incomplete for some functions, so their call lists are short. Fixing those in IDA and running `ida/dump_calls.py` again should name more helpers.
+`ida/dump_calls.py` follows each arcade function's code from its start rather than trusting IDA's function ends, which stop early in some functions. It follows jump tables (`play_motion` had 3 calls before, 31 after), writes an entry stub like `get_fcurve_value` as the function it falls into, and lists named code labels too (`tou_disp` is a label inside `ground_upper_disp`).
+
+Three game-code callees of named functions stay `FUN_`, because they have no arcade name to take:
+
+| FV | Called from | Why |
+|---|---|---|
+| `0x1cad40` | `rob_disp` | PS2-only: a LOD check |
+| `0x1dbb00` | `os_set_matrix` (twice) | PS2-only |
+| `0x1f5d80` | `tou_disp` (six times) | the arcade's unnamed `loc_22B84`, the body shared by `tower_check`, `hashira_check2` and `hashira_check`. Each of those loads its own table into `g2` and branches to it. The PS2 passes the table as an argument (`0x22b24`, `0x22b64`, `0x22b44`). |
 
 ## Ghidra
 

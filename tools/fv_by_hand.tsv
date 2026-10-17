@@ -1,0 +1,40 @@
+# FV native helpers named by hand: the alignment cannot pair them (the PS2 inlined or
+# reordered calls), but the code shows which arcade function each one is.
+# native addr, arcade name, evidence. arcade_align.py takes these as extra roots.
+001cddc0	rob_kage_disp_kabe	rob_kabe_kage_disp calls it twice, with g5 = 6 and g5 = 4 as the arcade does
+001cc840	rob_kage_disp_ground	rob_kabe_kage_disp calls it last, unconditionally, as the arcade does
+001e8980	get_start_value	get_frame_dat calls it when bit 0 of 0xbdd(g7) is clear, as the arcade does
+001e9580	get_fcurve_value_f	get_frame_dat calls it three times; one call has get_fcurve_value's cvtir g6 inlined before it
+001edd40	tpd_clip_stage	tex_move_poly inlines tpd_clip: two calls, g9 = stage_ypos then 0
+001ed4c0	set_tpd_data	tex_move_poly calls it when the clip returns g0 != 0
+001ed940	send_tpd	tex_move_poly calls it after the clip loop
+001f4880	calc_near_light	rob_kage_disp_inside: first call, g0 saved for rob_kage_set_flag_inout
+001f4600	calc_ext_light_vec	rob_kage_disp_inside: second call, its g0 decides the rest
+001f4180	rob_kage_set_flag_inout	rob_kage_disp_inside: after the inlined rob_kage_set_matrix, with the saved g0
+001fbac0	calc_kaze	osage_dsp: the call before the os_set loop
+001fd640	os_set_matrix	osage_dsp switch case 1 (arcade table 0x62b04)
+001fcc80	os_set_coli	osage_dsp switch case 2
+001fcb80	os_set_etc	osage_dsp switch case 3
+001fc780	os_set_tsukene	osage_dsp switch case 4
+001fc380	os_set_osage	osage_dsp switch case 5
+001fe0c0	osage_copro	osage_dsp: between the 0x800101 and 0x1000202 FIFO words
+001fc1c0	set_situation_flags	same test of 0x1b1(g7) == 3, bit 9 of (g13) and 0xf8(g13)
+001dae00	fix_hara	play_motion command 3 (arcade jump table 0x1d028)
+001f3b00	stage_contact_sound	play_motion command 4, called twice
+001f35c0	sound_chainlink_hit	play_motion command 4
+001f3940	check_same_sound	play_motion commands 4 and 9, each time before sound_request_u
+001db500	check_front_back	play_motion command 10
+001db200	set_option	play_motion command 17, after the inlined delete_option (send_init_ram_coli_data)
+001d2480	set_ashi_ptn	rob_disp: when 0x5f0(g7) != 0
+001d2280	set_te_ptn	rob_disp: when 0x6ac(g7) != 0
+001f29c0	mune_unit_change	rob_disp: for unit 1
+001f14c0	koshi_unit_change	rob_disp: for unit 9
+001d1240	pky_kami_disp	rob_disp: after the test of 0x1f48(g7)
+001eff40	kata_pat_disp	rob_disp: the register-save call not after set_mmode; the smaller of the two, as on the arcade
+001ee200	kosi_mino_disp	rob_disp: the register-save call after set_mmode; the larger of the two, as on the arcade
+001db640	copy_option_data	rob_disp: copies the option block word by word
+001d1000	option_control	rob_disp calls it twice; it inlines delete_option (send_init_ram_coli_data)
+001df100	total_skill_adder_g8	area_coli calls it with g9 = 3000 and 2000, as the arcade does
+001fa4c0	finish_wall_calc_pos	called once finish_wall_flag is set; it calls finish_coli_pos_get
+001fa6c0	finish_coli_pos_get	the one call in finish_wall_calc_pos
+001fe280	os_set_osage_after	the only real entry in osage_copro's jump table; it calls set_obj_fifo

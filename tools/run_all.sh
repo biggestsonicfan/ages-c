@@ -35,7 +35,7 @@ python3 "$D/ages_roots.py" "$W/scan/vf2" --fn-regex '^sysCop(Patch|Set)' --names
 python3 "$D/ages_roots.py" "$W/scan/fv" --fn-range 1c8000 200000 > "$W/scan/fv/roots0.tsv"
 python3 "$D/i960names.py" "$W/fv_ida_names.tsv" "$W/scan/fv/roots0.tsv" > "$W/scan/fv/roots.tsv"
 python3 "$D/arcade_align.py" "$FE" "$W/out/SLPM_626.06/functions.tsv" "$W/fv_vf2_names.tsv" \
-    "$W/scan/fv/roots.tsv" "$W/fv_ida_calls.tsv" 1c8000 200000 > "$W/fv_arcade.tsv"
+    "$W/scan/fv/roots.tsv" "$W/fv_ida_calls.tsv" 1c8000 200000 "$D/fv_by_hand.tsv" > "$W/fv_arcade.tsv"
 { grep -v -P '\troot$' "$W/fv_arcade.tsv" | cut -f1,2; cat "$W/fv_vf2_names.tsv"; } > "$W/fv_names.tsv"
 
 # Decompile, index, audit.
