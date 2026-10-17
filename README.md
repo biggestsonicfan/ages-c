@@ -4,7 +4,7 @@ Sega's C from two PlayStation 2 releases: **Sega Ages 2500 Vol. 16: Virtua Fight
 
 The aim is C hooks for the emulator that are as close to the board as we can make them, not a copy of the PS2 games. Where the board does something else, follow the board. The faithful record of the PS2 C is [ages-decomp](https://github.com/biggestsonicfan/ages-decomp) (the submodule `decomp/`).
 
-**State:** the source material is extracted (ages-decomp) and the tools that made it are here. No function is converted yet.
+**State:** the source material is extracted (ages-decomp) and the tools that made it are here. One Fighting Vipers root is converted and hooked: `efc_face_change_cont` (`fn/efc_face_change_cont.h`), behind m2-hle2's `--ages-i960`, and checked against the i960 with `--ages-verify` (see "Checking").
 
 ## What the PS2 games do
 
@@ -18,12 +18,12 @@ Fighting Vipers shares the engine with Sonic the Fighters, so much of its `FN` l
 ## Plan
 
 1. **ages-decomp and ages-c on GitHub.** Done: ages-decomp is the submodule `decomp/` (`git clone --recursive`, or `git submodule update --init`).
-2. **Fighting Vipers first.** m2-hle2 already runs `fvipers` (`src/profiles/fvipers.h`). Convert the 46 `FN` roots to `fn/<arcade name>.h` in gems-c's form (`static uint32_t afn_<name>(int entry)`), with a hook at each patch site, behind an `--ages-i960` flag. 36 of FV's 112 helpers are still `FUN_` (see "Naming" below); 33 of them are outside the game code (runtime code VF2 didn't match), and the other 3 have no arcade name.
+2. **Fighting Vipers first.** m2-hle2 already runs `fvipers` (`src/profiles/fvipers.h`). Convert the 46 `FN` roots to `fn/<arcade name>.h` in gems-c's form (`static uint32_t afn_<name>(int entry)`), with a hook at each patch site, behind an `--ages-i960` flag. Started: the flag, the hook table and the first root (`efc_face_change_cont`) are in; 45 roots to go. 36 of FV's 112 helpers are still `FUN_` (see "Naming" below); 33 of them are outside the game code (runtime code VF2 didn't match), and the other 3 have no arcade name.
 3. **The FV COP**, `cop/NN_<name>.h`, behind `--ages-cop`. That includes the Model 2B commands Gems never had (`Fn_area_coli`, `Fn_kage_poly`...). gems-c's `sharc/` covers most of the rest, so compare the two before converting.
-4. **A verify mode** like `--gems-verify`: run each hooked function both ways and log what differs from the i960.
+4. **A verify mode** like `--gems-verify`: run each hooked function both ways and log what differs from the i960. Done for the i960 roots: `--ages-verify` is `--gems-verify`'s verifier.
 5. **Virtua Fighter 2.** m2-hle2 has no VF2 profile yet; it needs one for the Model 2A board (`BOARD_MODEL2A_CRX`), and the arcade program needs labels to pair VF2's patch sites with function names.
 
-What m2-hle2 gets will follow `src/core/gems.h`: an `ages.h` with the runtime API and the tables, a CMake option `M2HLE_AGES_DIR` pointing at this repository's `ages_impl.h`, and flags that log that they do nothing when the build doesn't have it. As with Gems, neither flag is the board: a hooked function is charged as one i960 instruction, and the PS2's COP is single-precision VU0/FPU arithmetic, not the TGP or SHARC. A netplay session turns both off.
+m2-hle2's side follows `src/core/gems.h`: `src/core/ages.h` has the flags and the runtime API, and the CMake option `M2HLE_AGES_DIR` points at this repository's `ages_impl.h`. A build without it accepts the flags, which then log that they do nothing. As with Gems, neither flag is the board: a hooked function is charged as one i960 instruction, and the PS2's COP is single-precision VU0/FPU arithmetic, not the TGP or SHARC. A netplay session turns both off.
 
 ## Layout
 
@@ -31,9 +31,41 @@ What m2-hle2 gets will follow `src/core/gems.h`: an `ages.h` with the runtime AP
 |---|---|
 | `tools/` | everything used to extract and name the source material (below) |
 | `decomp/` | the submodule ages-decomp |
-| `fn/`, `cop/`, `gen_all.py`, `ages_impl.h`, `check.sh` | (to come) the conversion, in gems-c's layout |
+| `fn/<name>.h` | one patched i960 function: `static uint32_t afn_<name>(int entry)`. `entry` 1 = called from the patch site (pops the i960 frame itself, as the PS2's `i960ReturnProc`), 0 = called from other C. Returns 0 |
+| `gen_all.py` | writes `ages_all.h`: prototypes, includes and `ages_patches[]`. Only functions that are defined go in the table; the patch sites come from `decomp/FV/FN/INDEX.md` |
+| `ages_all.h` | written by `gen_all.py`; not tracked (`.gitignore`) |
+| `ages_impl.h` | what m2-hle2's `ages.h` includes |
+| `check.sh` | syntax-check everything against an m2-hle2 tree |
+| `tools/run/runverify.sh` | run fvipers headless with `--ages-verify` and quit, so the report is written |
+| `cop/` | (to come) the FV COP |
 
 No game data is in either repository. The tools need your own copies of the discs.
+
+## Building m2-hle2 with it
+
+```bash
+git submodule update --init decomp      # gen_all.py reads decomp/FV/FN/INDEX.md
+cmake -S <m2-hle2> -B <build> -DCMAKE_BUILD_TYPE=Release -DM2HLE_AGES_DIR=<this repository>
+cmake --build <build> --target m2hle
+```
+
+CMake runs `gen_all.py` when it configures, and again when a file in `fn/` changes. Then run m2-hle2 on the `fvipers` set (Revision D, the PS2's program; your own dump) with `--ages-i960`, or `--ages-verify` to check.
+
+The C is written against `ages.h`, which is gems.h's runtime under `ages_` names, since the PS2's ABI is Gems': `AGES_R(n)`, `AGES_G(n)`, `AGES_AC`; `ages_ld8/8s/16/16s/32`, `ages_st8/16/32`, `ages_ldf/stf`, `ages_ldn/stn`; `ages_cop_w/wf/r/rf`; `ages_i960_ret`, `ages_branch`. The PS2's `sysMemRead*` / `sysMemWrite*` become loads and stores at the width and sign the i960 instruction has, and where the PS2 keeps something on the host (a static) that the board keeps in i960 memory, follow the board.
+
+## Checking
+
+```bash
+MINIZ_GEN=<m2-hle2 build>/miniz-gen ./check.sh <m2-hle2 checkout>
+M2HLE_EXE=<build>/Release/m2hle ROMS_DIR=<folder with fvipers.zip> tools/run/runverify.sh 150 --ages-verify
+grep ages-verify /dev/shm/ages-run/m2hle.log
+```
+
+`check.sh` compiles `ages.h` with everything here (gcc `-fsyntax-only -Wall`). `--ages-verify` runs each hooked function both ways, as gems-c's `--gems-verify`: the C on a snapshot of the board, then the i960 from the same state to where the C resumed, and logs what differs; the board carries on from the i960's run. At exit it logs one row per function: calls / exact / float-close / regs-only / differ / lost.
+
+Last run (300 s of fvipers attract): `efc_face_change_cont` 264 calls, 264 exact. The same run with the store put one slot off on purpose logs every call as `differ` (two RAM words). Before m2-hle2 #996, that wrong slot passed as float-close: small integers read as denormal floats, and the old tolerance took any two of them as close.
+
+Run lizard (`/opt/fly/bin/lizard -w -C 15 -L 80 fn`) after changing any C here.
 
 ## Tools
 
