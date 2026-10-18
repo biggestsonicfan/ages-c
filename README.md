@@ -4,7 +4,7 @@ Sega's C from two PlayStation 2 releases: **Sega Ages 2500 Vol. 16: Virtua Fight
 
 The aim is C hooks for the emulator that are as close to the board as we can make them, not a copy of the PS2 games. Where the board does something else, follow the board. The faithful record of the PS2 C is [ages-decomp](https://github.com/biggestsonicfan/ages-decomp) (the submodule `decomp/`).
 
-**State:** the source material is extracted (ages-decomp) and the tools that made it are here. 38 of Fighting Vipers' 46 roots are converted and hooked behind m2-hle2's `--ages-i960`, every one exact against the i960 under `--ages-verify` (see "Checking"). Of the other 8, 1 uses another convention and 7 never run in attract, so the verifier cannot check them (see "Roots not hooked").
+**State:** the source material is extracted (ages-decomp) and the tools that made it are here. 38 of Fighting Vipers' 46 roots are converted and hooked behind m2-hle2's `--ages-i960`, every one exact against the i960 under `--ages-verify` (see "Checking"). Of the other 8, 1 uses another convention and 7 never run in attract, so the verifier cannot check them (see "Roots not hooked"). All 11 of Virtua Fighter 2's patched functions that have a patch site are converted and hooked on the `vf2` set, exact under `--ages-verify` (see "Virtua Fighter 2").
 
 ## What the PS2 games do
 
@@ -21,7 +21,7 @@ Fighting Vipers shares the engine with Sonic the Fighters, so much of its `FN` l
 2. **Fighting Vipers first.** m2-hle2 already runs `fvipers` (`src/profiles/fvipers.h`). Convert the 46 `FN` roots to `fn/<arcade name>.h` in gems-c's form (`static uint32_t afn_<name>(int entry)`), with a hook at each patch site, behind an `--ages-i960` flag. Done for every root attract reaches: 38 hooked, plus the helpers they call (111 files). 36 of FV's 112 helpers are still `FUN_` (see "Naming" below); 33 of them are outside the game code (runtime code VF2 didn't match), and the other 3 have no arcade name.
 3. **The FV COP**, `cop/NN_<name>.h`, behind `--ages-cop`. That includes the Model 2B commands Gems never had (`Fn_area_coli`, `Fn_kage_poly`...). gems-c's `sharc/` covers most of the rest, so compare the two before converting.
 4. **A verify mode** like `--gems-verify`: run each hooked function both ways and log what differs from the i960. Done for the i960 roots: `--ages-verify` is `--gems-verify`'s verifier.
-5. **Virtua Fighter 2.** m2-hle2 has no VF2 profile yet; it needs one for the Model 2A board (`BOARD_MODEL2A_CRX`), and the arcade program needs labels to pair VF2's patch sites with function names.
+5. **Virtua Fighter 2.** Done for the i960 functions: m2-hle2's `vf2` profile runs the Model 2A board, and `vf2/<name>.h` hooks all 11 patched functions that have a site (see "Virtua Fighter 2").
 
 m2-hle2's side follows `src/core/gems.h`: `src/core/ages.h` ([m2-hle2 #394](https://github.com/biggestsonicfan/m2-hle2/pull/394)) has the flags and the runtime API, and the CMake option `M2HLE_AGES_DIR` points at this repository's `ages_impl.h`. A build without it accepts the flags, which then log that they do nothing. As with Gems, neither flag is the board: a hooked function is charged as one i960 instruction, and the PS2's COP is single-precision VU0/FPU arithmetic, not the TGP or SHARC. A netplay session turns both off.
 
@@ -32,12 +32,13 @@ m2-hle2's side follows `src/core/gems.h`: `src/core/ages.h` ([m2-hle2 #394](http
 | `tools/` | everything used to extract and name the source material (below) |
 | `decomp/` | the submodule ages-decomp |
 | `fn/<name>.h` | one patched i960 function: `static uint32_t afn_<name>(int entry)`. `entry` 1 = called from the patch site (pops the i960 frame itself, as the PS2's `i960ReturnProc`), 0 = called from other C. Returns 0, except a root patched mid-function (`rob_grass_disp_p768`): it pops nothing and returns how far the PS2's interpreter moves on in its decoded program (8 bytes per i960 word), so the i960 resumes at site + R/2, as gems.h does for Gems' traps |
-| `gen_all.py` | writes `ages_all.h`: prototypes, includes and `ages_patches[]`. Only functions that are defined go in the table; the patch sites come from `decomp/FV/FN/INDEX.md` |
+| `vf2/<name>.h` | one of VF2's patched functions, `static uint32_t afn_vf2_<name>(int entry)`, named after the PS2's `sysCopPatch<Name>` in snake case |
+| `gen_all.py` | writes `ages_all.h`: prototypes, includes and a patch table per set (`ages_sets[]`). Only functions that are defined go in a table; FV's sites come from `decomp/FV/FN/INDEX.md`, VF2's from `decomp/VF2/patches.tsv` |
 | `ages_all.h` | written by `gen_all.py`; not tracked (`.gitignore`) |
 | `nohook.txt` | roots that are defined (other C calls them) but left to the i960 at their own site |
 | `ages_impl.h` | what m2-hle2's `ages.h` includes |
 | `check.sh` | syntax-check everything against an m2-hle2 tree |
-| `tools/run/runverify.sh` | run fvipers headless with `--ages-verify` and quit, so the report is written |
+| `tools/run/runverify.sh` | run fvipers (or `SET=vf2`) headless with `--ages-verify` and quit, so the report is written |
 | `cop/` | (to come) the FV COP |
 
 No game data is in either repository. The tools need your own copies of the discs.
@@ -50,9 +51,36 @@ cmake -S <m2-hle2> -B <build> -DCMAKE_BUILD_TYPE=Release -DM2HLE_AGES_DIR=<this 
 cmake --build <build> --target m2hle
 ```
 
-CMake runs `gen_all.py` when it configures, and again when a file in `fn/` changes. Then run m2-hle2 on the `fvipers` set (Revision D, the PS2's program; your own dump) with `--ages-i960`, or `--ages-verify` to check.
+CMake runs `gen_all.py` when it configures, and again when a file in `fn/` or `vf2/` changes (a new file: re-run cmake). Then run m2-hle2 on the `fvipers` set (Revision D, the PS2's program; your own dump) with `--ages-i960`, or `--ages-verify` to check.
 
 The C is written against `ages.h`, which is gems.h's runtime under `ages_` names, since the PS2's ABI is Gems': `AGES_R(n)`, `AGES_G(n)`, `AGES_AC`; `ages_ld8/8s/16/16s/32`, `ages_st8/16/32`, `ages_ldf/stf`, `ages_ldn/stn`; `ages_cop_w/wf/r/rf`; `ages_i960_ret`, `ages_branch`. The PS2's `sysMemRead*` / `sysMemWrite*` become loads and stores at the width and sign the i960 instruction has, and where the PS2 keeps something on the host (a static) that the board keeps in i960 memory, follow the board.
+
+## Virtua Fighter 2
+
+The `vf2` set (Version 2.1) only; its clones are other programs. The 11 functions with a patch site:
+
+| EXT | PS2 | i960 site | resumes |
+|---|---|---|---|
+| 4c | sysCopPatchSetObj | 140 `call 0x7c60` sites | after the call |
+| 58 | sysCopSetObjCommon | 0x7D68, 0x7DA8 (`b 0x7ca4`) | `ret` |
+| 59 | sysCopSetObjSame | 0x7DBC | `ret` |
+| 4f | sysCopPatchCalcUnitMat | 0x16504 | `ret` 0x1769C |
+| 4e | sysCopPatchColiContFast | 0x23524 | `ret` 0x23648 |
+| 51 | sysCopPatchSmoothInt | 0x27130 | its `ret`s |
+| 50 | sysCopPatchGetFrameDat | 0x28184 | `ret` 0x2877C |
+| 53 | sysCopPatchHappaDisp | 0x2F134 | 0x2F2EC |
+| 54 | sysCopPatchRecogSample | 0x52398 | 0x5243C, 0x52488 or 0x524D8 |
+| 52 | sysCopPatchOsageDsp | 0x644EC | 0x6453C |
+| 4b | sysCopPatchSetOsageAfter | 0x6539C | `ret` 0x653EC |
+
+sysCopSetColiBallData (EXT 4d) has no site. The rules VF2's C keeps:
+
+- **Follow the arcade, not the PS2.** VF2 is a Model 2A: the i960 drives the TGP over the bus, `st`/`ld` at g11 + g12. The C does the same loads and stores in the same order (`vf2_tgp_w`/`vf2_tgp_r`, through `ages_st32`/`ages_ld32`, so the TGP runs on each word as it does on the board), never `ages_cop_*`, which is the 2B COP. The PS2's `copExec`, `g_fifoOut` and `sysVf2GetObjAddr` are its own coprocessor and renderer: where the PS2 skips a TGP read or write the i960 does (set_osage_after's FIFO pop per record, happa_disp's 0x09801313), the C does it. The entry's last word goes to the GEO as -1, as the i960 writes it.
+- **Returns.** The PS2's VF2 cases return how far to skip in i960 words (resume = site + R*4); gems' convention is R*8. Most of these resume at a `ret`, so the C pops the frame (`ages_i960_ret`) and returns 0.
+- **Callees.** A loop that `callx`es i960 code (osage_dsp, set_osage_after) has every callee in C, so no hook hands the board back to the i960 mid-loop. Where VF2's code is FV's (get_start_value, get_end_value, set_mirror) the C calls FV's.
+- **Order.** `gen_all.py` includes `fn/` then `vf2/` alphabetically; a `vf2/` file that uses `set_obj.h`'s helpers (`vf2_cmpo`, `vf2_tgp_*`, `vf2_obj_common`) includes it.
+
+Attract reaches set_obj, calc_unit_mat, coli_cont_fast, get_frame_dat, smooth_int, osage_dsp and set_osage_after. happa_disp runs only on stage 5 (the byte at 0x6EEAE + stage*256), recog_sample only with a player's input: both were checked on a scripted game. A few branches are written from the disassembly but no run reached them: get_frame_dat's 0x854 key remap, slow-motion paths (0x500068 bits 17, 20) and the arm aim for motions 0xD8/0x519; smooth_int's early bails; calc_unit_mat's extra-model branch.
 
 ## Checking
 
