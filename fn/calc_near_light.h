@@ -23,12 +23,12 @@ static float cnl_light(uint32_t i, float *x, float *z, uint32_t pos[3]) {
 
 static uint32_t afn_calc_near_light(int entry) {
     float best = ages_u2f(0x461C4000u);   /* 10000.0 */
-    uint32_t near = 0, pos[3];
+    uint32_t nearest = 0, pos[3];
     for (uint32_t i = 0; i < 4; i++) {
         float x, z, d = cnl_light(i, &x, &z, pos);
-        if (!(d > best)) { near = i; best = d; }
+        if (!(d > best)) { nearest = i; best = d; }
     }
-    AGES_G(0) = near;
+    AGES_G(0) = nearest;
     AGES_AC = (AGES_AC & ~7u) | 2u;
     if (entry) ages_i960_ret();
     return 0;
