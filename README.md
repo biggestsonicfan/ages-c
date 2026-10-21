@@ -117,7 +117,7 @@ Run lizard (`/opt/fly/bin/lizard -w -C 15 -L 80 fn`) after changing any C here.
 | `ages_scan.py` | dumps an executable's patch table, extension switch and COP table to `patches.tsv`, `ext.tsv`, `cop.tsv` |
 | `ages_roots.py` | picks the functions to export (`roots.tsv`): the extension cases that call game code, and every COP handler |
 | `ida/dump_names.py`, `ida/dump_calls.py` | IDA scripts: the arcade program's names, and each function's calls in order |
-| `i960names.py` | names FV's roots after the arcade function at their patch site; with `--keep`, adds VF2's arcade names to its roots
+| `i960names.py` | names FV's roots after the arcade function at their patch site; with `--keep`, adds VF2's arcade names to its roots |
 | `arcade_align.py` | names FV's helpers by lining up each named function's calls against its arcade original's |
 | `ghidra/AgesTypes.java` | gives the runtime calls prototypes, and the register file a struct |
 | `ghidra/AgesExport.java` | decompiles the roots and their callees (three deep) to one file each, with `helpers.tsv` |
