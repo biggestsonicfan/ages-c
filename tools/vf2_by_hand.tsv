@@ -1,0 +1,3 @@
+# VF2 roots named by hand: their first patch site is not inside the function they replace.
+# native addr, arcade name, evidence. i960names.py --by-hand takes these first.
+00197800	set_obj	all 140 sites of sysCopPatchSetObj are `call 0x7c60`, and 0x7c60 is Sega's set_obj

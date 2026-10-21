@@ -4,6 +4,8 @@
 # <work dir> gets the Ghidra project, the unpacked i960 programs and the tables. It must
 # already hold fv_ida_names.tsv and fv_ida_calls.tsv, dumped with ida/dump_*.py from a
 # labelled IDA database of the arcade fvipers program (MAME set fvipers, Revision D).
+# vf2_symbols.csv there, if present, is vf2-decomp's decomp/i960/original_symbols.csv
+# (Sega's own names for the arcade vf2 program, Version 2.1): VF2's roots get "(arcade X)".
 # Needs Ghidra 12.1.x with ghidra-emotionengine-reloaded ($GHIDRA, default ~/build/tools/ghidra),
 # python3 with capstone, nm and lizard.
 set -e
@@ -31,7 +33,12 @@ cut -f1,2 "$W/fv_matches.tsv" > "$W/fv_vf2_names.tsv"
 # The patch table, the extension switch and the COP table (addresses found by hand; see README).
 python3 "$D/ages_scan.py" "$VE" "$W/vf2_names.tsv" "$W/scan/vf2" --patch 20ab70 --ext 20b950 6a --cop 207a50
 python3 "$D/ages_scan.py" "$FE" "$W/fv_vf2_names.tsv" "$W/scan/fv" --patch 288fe0 --ext 2898d0 8f --cop 23fc20
-python3 "$D/ages_roots.py" "$W/scan/vf2" --fn-regex '^sysCop(Patch|Set)' --names "$W/vf2_names.tsv" > "$W/scan/vf2/roots.tsv"
+python3 "$D/ages_roots.py" "$W/scan/vf2" --fn-regex '^sysCop(Patch|Set)' --names "$W/vf2_names.tsv" > "$W/scan/vf2/roots0.tsv"
+if [ -f "$W/vf2_symbols.csv" ]; then
+    python3 "$D/i960names.py" --keep --by-hand "$D/vf2_by_hand.tsv" "$W/vf2_symbols.csv" "$W/scan/vf2/roots0.tsv" > "$W/scan/vf2/roots.tsv"
+else
+    cp "$W/scan/vf2/roots0.tsv" "$W/scan/vf2/roots.tsv"
+fi
 python3 "$D/ages_roots.py" "$W/scan/fv" --fn-range 1c8000 200000 > "$W/scan/fv/roots0.tsv"
 python3 "$D/i960names.py" "$W/fv_ida_names.tsv" "$W/scan/fv/roots0.tsv" > "$W/scan/fv/roots.tsv"
 python3 "$D/arcade_align.py" "$FE" "$W/out/SLPM_626.06/functions.tsv" "$W/fv_vf2_names.tsv" \

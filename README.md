@@ -59,21 +59,23 @@ The C is written against `ages.h`, which is gems.h's runtime under `ages_` names
 
 The `vf2` set (Version 2.1) only; its clones are other programs. The 11 functions with a patch site:
 
-| EXT | PS2 | i960 site | resumes |
-|---|---|---|---|
-| 4c | sysCopPatchSetObj | 140 `call 0x7c60` sites | after the call |
-| 58 | sysCopSetObjCommon | 0x7D68, 0x7DA8 (`b 0x7ca4`) | `ret` |
-| 59 | sysCopSetObjSame | 0x7DBC | `ret` |
-| 4f | sysCopPatchCalcUnitMat | 0x16504 | `ret` 0x1769C |
-| 4e | sysCopPatchColiContFast | 0x23524 | `ret` 0x23648 |
-| 51 | sysCopPatchSmoothInt | 0x27130 | its `ret`s |
-| 50 | sysCopPatchGetFrameDat | 0x28184 | `ret` 0x2877C |
-| 53 | sysCopPatchHappaDisp | 0x2F134 | 0x2F2EC |
-| 54 | sysCopPatchRecogSample | 0x52398 | 0x5243C, 0x52488 or 0x524D8 |
-| 52 | sysCopPatchOsageDsp | 0x644EC | 0x6453C |
-| 4b | sysCopPatchSetOsageAfter | 0x6539C | `ret` 0x653EC |
+| EXT | PS2 | i960 site | resumes | arcade (Sega) |
+|---|---|---|---|---|
+| 4c | sysCopPatchSetObj | 140 `call 0x7c60` sites | after the call | `set_obj` |
+| 58 | sysCopSetObjCommon | 0x7D68, 0x7DA8 (`b 0x7ca4`) | `ret` | `set_obj+108` |
+| 59 | sysCopSetObjSame | 0x7DBC | `ret` | `set_obj+15c` |
+| 4f | sysCopPatchCalcUnitMat | 0x16504 | `ret` 0x1769C | `calc_unit_mat` |
+| 4e | sysCopPatchColiContFast | 0x23524 | `ret` 0x23648 | `coli_cont_cop` |
+| 51 | sysCopPatchSmoothInt | 0x27130 | its `ret`s | `smooth_int` |
+| 50 | sysCopPatchGetFrameDat | 0x28184 | `ret` 0x2877C | `get_frame_dat` |
+| 53 | sysCopPatchHappaDisp | 0x2F134 | 0x2F2EC | `happa_disp+264` |
+| 54 | sysCopPatchRecogSample | 0x52398 | 0x5243C, 0x52488 or 0x524D8 | `recog_sample+20` |
+| 52 | sysCopPatchOsageDsp | 0x644EC | 0x6453C | `osage_dsp+260` |
+| 4b | sysCopPatchSetOsageAfter | 0x6539C | `ret` 0x653EC | `osage_copro+18` |
 
-sysCopSetColiBallData (EXT 4d) has no site. The rules VF2's C keeps:
+sysCopSetColiBallData (EXT 4d) has no site. The arcade column is Sega's name for the routine at the site, from the 301 symbols vf2-decomp recovered (see "Naming"); the files here keep the PS2 names, and two differ from the arcade: `coli_cont_fast` is the arcade's `coli_cont_cop`, and `set_osage_after` is patched into `osage_copro`.
+
+The rules VF2's C keeps:
 
 - **Follow the arcade, not the PS2.** VF2 is a Model 2A: the i960 drives the TGP over the bus, `st`/`ld` at g11 + g12. The C does the same loads and stores in the same order (`vf2_tgp_w`/`vf2_tgp_r`, through `ages_st32`/`ages_ld32`, so the TGP runs on each word as it does on the board), never `ages_cop_*`, which is the 2B COP. The PS2's `copExec`, `g_fifoOut` and `sysVf2GetObjAddr` are its own coprocessor and renderer: where the PS2 skips a TGP read or write the i960 does (set_osage_after's FIFO pop per record, happa_disp's 0x09801313), the C does it. The entry's last word goes to the GEO as -1, as the i960 writes it.
 - **Returns.** The PS2's VF2 cases return how far to skip in i960 words (resume = site + R*4); gems' convention is R*8. Most of these resume at a `ret`, so the C pops the frame (`ages_i960_ret`) and returns 0.
@@ -115,7 +117,7 @@ Run lizard (`/opt/fly/bin/lizard -w -C 15 -L 80 fn`) after changing any C here.
 | `ages_scan.py` | dumps an executable's patch table, extension switch and COP table to `patches.tsv`, `ext.tsv`, `cop.tsv` |
 | `ages_roots.py` | picks the functions to export (`roots.tsv`): the extension cases that call game code, and every COP handler |
 | `ida/dump_names.py`, `ida/dump_calls.py` | IDA scripts: the arcade program's names, and each function's calls in order |
-| `i960names.py` | names FV's roots after the arcade function at their patch site |
+| `i960names.py` | names FV's roots after the arcade function at their patch site; with `--keep`, adds VF2's arcade names to its roots
 | `arcade_align.py` | names FV's helpers by lining up each named function's calls against its arcade original's |
 | `ghidra/AgesTypes.java` | gives the runtime calls prototypes, and the register file a struct |
 | `ghidra/AgesExport.java` | decompiles the roots and their callees (three deep) to one file each, with `helpers.tsv` |
@@ -136,7 +138,9 @@ VF2's come from its symbol table. FV's were found by looking for the same loop s
 
 ## Naming
 
-VF2's names are Sega's own, from the symbol table. FV is stripped, and its names come from three places:
+VF2's names are Sega's own, from the symbol table. Its roots also get the arcade name at their patch site (`(arcade X)`, ages-decomp's `VF2/FN/INDEX.md`): from the 301 symbols of the arcade program Sega left in the DLL of a later Windows port, recovered by [vf2-decomp](https://github.com/celsowm/vf2-decomp) (`decomp/i960/original_symbols.csv`, BSD-3). `run_all.sh` takes it as `vf2_symbols.csv` in the work dir; `i960names.py --keep` adds the name without renaming, and `tools/vf2_by_hand.tsv` names SetObj, whose sites are calls to the function it replaces.
+
+FV is stripped, and its names come from three places:
 
 1. **VF2:** 2,112 of 3,163 functions match (`decomp/FV/names_from_vf2.tsv`): the shared runtime, the interpreter, the COP and the libraries. None of the 141 functions in FV's game code (`0x1c8000`-`0x200000`) match; it differs too much from VF2's.
 2. **The arcade patch sites:** all 46 roots, from a labelled IDA database of `fvipers`.
